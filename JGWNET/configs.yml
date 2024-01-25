@@ -1,0 +1,51 @@
+data:
+    image_size: 64
+    channels: 3
+    num_workers: 2
+    train_data_dir: '/data/JGW/hsguan/JGWNET/train/'  # path to directory of train data
+    test_data_dir: '/data/JGW/hsguan/JGWNET/selected/'  # path to directory of test data
+    test_save_dir: '/home/dachuang/hsguan/JGWNET/result'
+    val_save_dir: '/data/JGW/hsguan/validation/'
+    grid_r: 16
+    conditional: True
+    tensorboard: '/home/dachuang/hsguan/JGWNET/logs'
+
+model:
+    in_channels: 3
+    out_ch: 3
+    ch: 128
+    ch_mult: [1, 2, 3, 4]
+    num_res_blocks: 2
+    attn_resolutions: [16, ]
+    dropout: 0.0
+    ema_rate: 0.999
+    ema: True
+    resamp_with_conv: True
+
+diffusion:
+    beta_schedule: linear
+    beta_start: 0.0001
+    beta_end: 0.02
+    num_diffusion_timesteps: 1000
+
+training:
+    patch_n: 8
+    batch_size: 8
+    n_epochs: 500
+    n_iters: 2000000
+    snapshot_freq: 20  # model save frequency
+    validation_freq: 10000
+    resume: '/data/JGW/hsguan/JGWNET/premd/diffusion_model'  # path to pretrained model
+    seed: 61 # random seed
+
+sampling:
+    batch_size: 4
+    last_only: True
+    sampling_timesteps: 25
+
+optim:
+    weight_decay: 0.0001
+    optimizer: "Adam"
+    lr: 0.00004
+    amsgrad: False
+    eps: 0.00000001
