@@ -2,13 +2,13 @@ data:
     image_size: 64
     channels: 3
     num_workers: 2
-    train_data_dir: '/data/JGW/hsguan/JGWNET/train/'  # path to directory of train data
-    test_data_dir: '/data/JGW/hsguan/JGWNET/selected/'  # path to directory of test data
-    test_save_dir: '/home/dachuang/hsguan/JGWNET/result'
-    val_save_dir: '/data/JGW/hsguan/validation/'
+    train_data_dir: '/JGWNET/train/'  # path to directory of train data
+    test_data_dir: '/JGWNET/selected/'  # path to directory of test data
+    test_save_dir: '/JGWNET/result'
+    val_save_dir: '/validation/'
     grid_r: 16
     conditional: True
-    tensorboard: '/home/dachuang/hsguan/JGWNET/logs'
+    tensorboard: 'logs'
 
 model:
     in_channels: 3
@@ -35,7 +35,7 @@ training:
     n_iters: 2000000
     snapshot_freq: 20  # model save frequency
     validation_freq: 10000
-    resume: '/data/JGW/hsguan/JGWNET/premd/diffusion_model'  # path to pretrained model
+    resume: '/JGWNET/premd/diffusion_model'  # path to pretrained model
     seed: 61 # random seed
 
 sampling:
