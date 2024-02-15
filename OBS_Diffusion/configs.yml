@@ -2,13 +2,13 @@ data:
     image_size: 64
     channels: 3
     num_workers: 2
-    train_data_dir: '/JGWNET/train/'  # path to directory of train data
-    test_data_dir: '/JGWNET/selected/'  # path to directory of test data
-    test_save_dir: '/JGWNET/result'
-    val_save_dir: '/validation/'
+    train_data_dir: '/Your_dataroot/train/'  # path to directory of train data
+    test_data_dir: '/Your_dataroot/test/'  # path to directory of test data
+    test_save_dir: '/OBS_Diffusion/result'
+    val_save_dir: '/OBS_Diffusion/validation/'
     grid_r: 16
     conditional: True
-    tensorboard: 'logs'
+    tensorboard: '/OBS_Diffusion/logs'
 
 model:
     in_channels: 3

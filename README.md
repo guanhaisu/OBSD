@@ -34,9 +34,9 @@ Your_dataroot/
 data:
     train_data_dir: '/Your_dataroot/train/' # path to directory of train data
     test_data_dir: '/Your_dataroot/test/'   # path to directory of test data
-    test_save_dir: '/JGWNET/result' # path to directory of test output
-    val_save_dir: '/validation/'    # path to directory of validation during training
-    tensorboard: 'logs' # path to directory of training information
+    test_save_dir: 'OBS_Diffusion/result' # path to directory of test output
+    val_save_dir: 'OBS_Diffusion/validation/'    # path to directory of validation during training
+    tensorboard: 'OBS_Diffusion/logs' # path to directory of training information
 ```
 
 ## Train
