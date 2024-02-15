@@ -114,7 +114,7 @@ class DenoisingDiffusion(object):
         self.ema_helper.register(self.model)
 
         self.optimizer = utils.optimize.get_optimizer(self.config, self.model.parameters())
-        self.scheduler = CosineAnnealingLR(self.optimizer, T_max=config.training.n_epochs)
+        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=config.training.n_epochs)
         self.start_epoch, self.step = 0, 0
 
         betas = get_beta_schedule(
@@ -137,8 +137,8 @@ class DenoisingDiffusion(object):
         self.model.load_state_dict(checkpoint['state_dict'], strict=True)
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.ema_helper.load_state_dict(checkpoint['ema_helper'])
-        if not self.test:
-            self.scheduler.load_state_dict(checkpoint['scheduler'])
+        # if not self.test:
+        #     self.scheduler.load_state_dict(checkpoint['scheduler'])
         if ema:
             self.ema_helper.ema(self.model)
         print("=> loaded checkpoint '{}' (epoch {}, step {})".format(load_path, checkpoint['epoch'], self.step))
@@ -160,7 +160,7 @@ class DenoisingDiffusion(object):
                     'optimizer': self.optimizer.state_dict(),
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
-                    'scheduler': self.scheduler.state_dict()
+                    # 'scheduler': self.scheduler.state_dict()
                 }, filename=self.config.training.resume + '_' + str(epoch))
                 utils.logging.save_checkpoint({
                     'epoch': epoch + 1,
@@ -169,7 +169,7 @@ class DenoisingDiffusion(object):
                     'optimizer': self.optimizer.state_dict(),
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
-                    'scheduler': self.scheduler.state_dict()
+                    # 'scheduler': self.scheduler.state_dict()
                 }, filename=self.config.training.resume)
             if dist.get_rank() == 0:
                 print('=> current epoch: ', epoch)
@@ -214,7 +214,7 @@ class DenoisingDiffusion(object):
                     self.writer.add_scalar('train/loss', loss.item(), self.step)
                     self.writer.add_scalar('train/lr', current_lr, self.step)
 
-            self.scheduler.step()
+            # self.scheduler.step()
             # 保存模型
             if (epoch % self.config.training.snapshot_freq == 0) and dist.get_rank() == 0:
                 utils.logging.save_checkpoint({
@@ -224,7 +224,7 @@ class DenoisingDiffusion(object):
                     'optimizer': self.optimizer.state_dict(),
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
-                    'scheduler': self.scheduler.state_dict()
+                    # 'scheduler': self.scheduler.state_dict()
                 }, filename=self.config.training.resume + '_' + str(epoch))
                 utils.logging.save_checkpoint({
                     'epoch': epoch + 1,
@@ -233,7 +233,7 @@ class DenoisingDiffusion(object):
                     'optimizer': self.optimizer.state_dict(),
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
-                    'scheduler': self.scheduler.state_dict()
+                    # 'scheduler': self.scheduler.state_dict()
                 }, filename=self.config.training.resume)
 
     def sample_image(self, x_cond, x, last=True, patch_locs=None, patch_size=None):

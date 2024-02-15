@@ -35,7 +35,7 @@ training:
     n_iters: 2000000
     snapshot_freq: 20  # model save frequency
     validation_freq: 10000
-    resume: '/JGWNET/premd/diffusion_model'  # path to pretrained model
+    resume: '/Your_save_root/diffusion_model'  # path to pretrained model
     seed: 61 # random seed
 
 sampling:
@@ -46,6 +46,6 @@ sampling:
 optim:
     weight_decay: 0.0001
     optimizer: "Adam"
-    lr: 0.00004
+    lr: 0.00002
     amsgrad: False
     eps: 0.00000001

@@ -37,6 +37,9 @@ data:
     test_save_dir: 'OBS_Diffusion/result' # path to directory of test output
     val_save_dir: 'OBS_Diffusion/validation/'    # path to directory of validation during training
     tensorboard: 'OBS_Diffusion/logs' # path to directory of training information
+
+training:
+    resume: '/Your_save_root/diffusion_model'  # path to pretrained model
 ```
 
 ## Train
