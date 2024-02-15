@@ -16,7 +16,7 @@ Your_dataroot/
 │   │   ├── train_1.png (OBS image)
 │   │   └── train_2.png
 │   └── target/
-│       ├── train_1.png (Modern Chinese Characters image)
+│       ├── train_1.png (Modern Chinese Character image)
 │       └── train_2.png 
 │
 └── test/   (test set)
@@ -24,7 +24,7 @@ Your_dataroot/
     │   ├── test_1.png  (OBS image)
     │   └── test_2.png
     └── target/
-        ├── test_1.png  (Modern Chinese Characters image)
+        ├── test_1.png  (Modern Chinese Character image)
         └── test_2.png
 
 ```
