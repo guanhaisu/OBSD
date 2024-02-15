@@ -55,16 +55,16 @@ pip install -r requirements.txt
 
 
 ## Start training
-```python
+```bash
 CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node=1 train_diffusion.py
 ```
 
 ### You can monitor the training process.
-```python
+```bash
 tensorboard --logdir ./logs
 ```
 
 ## Test
-```python
+```bash
 CUDA_VISIBLE_DEVICES=0 python eval_diffusion.py
 ```
