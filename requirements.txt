@@ -1,0 +1,14 @@
+accelerate==0.23.0
+diffusers==0.22.0
+etcd==2.0.8
+fonttools==4.47.2
+gradio==4.19.0
+matplotlib==3.8.2
+numpy==1.26.4
+opencv_python==4.9.0.80
+pandas==2.2.0
+Pillow==10.2.0
+pygame==2.5.2
+PyYAML==6.0.1
+tqdm==4.65.2
+urllib3==1.26.18
