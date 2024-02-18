@@ -36,7 +36,8 @@ class EMAHelper(object):
             module = module.module
         for name, param in module.named_parameters():
             if param.requires_grad:
-                self.shadow[name].data = (1. - self.mu) * param.data + self.mu * self.shadow[name].data.to(device)
+                # self.shadow[name].data = (1. - self.mu) * param.data + self.mu * self.shadow[name].data.to(device)
+                self.shadow[name].data = (1. - self.mu) * param.data + self.mu * self.shadow[name].data
 
     def ema(self, module):
         if isinstance(module, nn.DataParallel) or isinstance(module, nn.parallel.DistributedDataParallel):
