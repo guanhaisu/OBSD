@@ -4,11 +4,11 @@ data:
     num_workers: 2
     train_data_dir: '/Your_dataroot/train/'  # path to directory of train data
     test_data_dir: '/Your_dataroot/test/'  # path to directory of test data
-    test_save_dir: '/OBS_Diffusion/result'
-    val_save_dir: '/OBS_Diffusion/validation/'
+    test_save_dir: 'Your_project_path/OBS_Diffusion/result'
+    val_save_dir: 'Your_project_path/OBS_Diffusion/validation/'
     grid_r: 16
     conditional: True
-    tensorboard: '/OBS_Diffusion/logs'
+    tensorboard: 'Your_project_path/OBS_Diffusion/logs'
 
 model:
     in_channels: 3
