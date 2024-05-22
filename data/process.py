@@ -5,8 +5,8 @@ import PIL.Image as Image
 from tqdm import tqdm
 
 def crop(image):
+    # 获取图像的高度和宽度
     height, width, _ = image.shape
-
     # 指定要剪切的像素数量
     # pixels_to_remove = 5
     pixels_to_remove = 0
@@ -74,4 +74,4 @@ for character in tqdm(characters):
     image = Image.fromarray(image)
     # 保存图片
     image.save(os.path.join(data_path, character))
-    print(character + "处理完成")
+    # print(character + "处理完成")
