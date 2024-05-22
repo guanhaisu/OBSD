@@ -9,21 +9,22 @@ import torch
 import torchvision.transforms as transforms
 from accelerate.utils import set_seed
 
-from src import (FontDiffuserDPMPipeline,
-                 FontDiffuserModelDPM,
-                 build_ddpm_scheduler,
-                 build_unet,
-                 build_content_encoder,
-                 build_style_encoder)
-from utils import (ttf2im,
+from .src import (FontDiffuserDPMPipeline,
+                  FontDiffuserModelDPM,
+                  build_ddpm_scheduler,
+                  build_unet,
+                  build_content_encoder,
+                  build_style_encoder)
+from .utils import (ttf2im,
                    load_ttf,
                    is_char_in_font,
                    save_args_to_yaml,
-                   save_single_image,)
+                   save_single_image,
+                   save_image_with_content_style)
 
 
 def arg_parse():
-    from configs.fontdiffuser import get_parser
+    from .configs.fontdiffuser import get_parser
 
     parser = get_parser()
     parser.add_argument("--ckpt_dir", type=str, default=None)
@@ -167,11 +168,16 @@ def sampling(args, pipe, content_image=None, style_image=None):
             if args.character_input:
                 save_image_with_content_style(save_dir=args.save_image_dir,
                                               image=images[0],
-
+                                              content_image_pil=content_image_pil,
+                                              content_image_path=None,
+                                              style_image_path=args.style_image_path,
                                               resolution=args.resolution)
             else:
                 save_image_with_content_style(save_dir=args.save_image_dir,
                                               image=images[0],
+                                              content_image_pil=None,
+                                              content_image_path=args.content_image_path,
+                                              style_image_path=args.style_image_path,
                                               resolution=args.resolution)
             print(f"Finish the sampling process, costing time {end - start}s")
         return images[0]
@@ -239,11 +245,6 @@ def instructpix2pix(pil_image, text_prompt, pipe):
 
     return image
 
-def save_image_with_content_style(save_dir, image, resolution,name):
-    new_image = Image.new('RGB', (resolution , resolution))
-    new_image.paste(image, (0, 0))
-    save_path = f"{save_dir}/{name}"
-    new_image.save(save_path)
 
 if __name__ == "__main__":
     args = arg_parse()

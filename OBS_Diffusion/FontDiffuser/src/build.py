@@ -1,5 +1,5 @@
 from diffusers.schedulers.scheduling_ddpm import DDPMScheduler
-from src import (ContentEncoder, 
+from . import (ContentEncoder,
                  StyleEncoder, 
                  UNet)
 
