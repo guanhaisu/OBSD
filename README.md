@@ -34,9 +34,9 @@ Your_dataroot/
 data:
     train_data_dir: '/Your_dataroot/train/' # path to directory of train data
     test_data_dir: '/Your_dataroot/test/'   # path to directory of test data
-    test_save_dir: 'OBS_Diffusion/result' # path to directory of test output
-    val_save_dir: 'OBS_Diffusion/validation/'    # path to directory of validation during training
-    tensorboard: 'OBS_Diffusion/logs' # path to directory of training information
+    test_save_dir: 'Your_project_path/OBS_Diffusion/result' # path to directory of test output
+    val_save_dir: 'Your_project_path/OBS_Diffusion/validation/'    # path to directory of validation during training
+    tensorboard: 'Your_project_path/OBS_Diffusion/logs' # path to directory of training information
 
 training:
     resume: '/Your_save_root/diffusion_model'  # path to pretrained model
@@ -47,7 +47,7 @@ training:
 ### Environment Configuration
 ```bash
 git clone https://github.com/guanhaisu/OBSD.git
-cd OBSD/OBS_Diffusion
+cd OBS_Diffusion
 ```
 ```bash
 conda create -n OBSD python=3.9
@@ -70,4 +70,8 @@ tensorboard --logdir ./logs
 ## Test
 ```bash
 CUDA_VISIBLE_DEVICES=0 python eval_diffusion.py
+```
+### If you want to refine the generated character results, you can run the following script. Also be careful to change your file paths.
+```bash
+CUDA_VISIBLE_DEVICES=0 python refine.py
 ```
