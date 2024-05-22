@@ -4,7 +4,7 @@
 ## Oracle Bone Script Decipher.
 
 ### Welcome to OBSD. We show the [demo](http://vlrlab-monkey.xyz:7680/OBSD) here.<br /> The dataset is available [here](https://github.com/RomanticGodVAN/character-Evolution-Dataset).<br /> 
-In [data/modern_kanji.zip](#data/modern_kanji.zip), we also provide images of modern Chinese characters corresponding to Oracle Bone Script, and you can run the data/process.py to process the data if you wish to use your own data.
+In [data/modern_kanji.zip](./data/modern_kanji.zip), we also provide images of modern Chinese characters corresponding to Oracle Bone Script, and you can run the [data/process.py](./data/process.py) to process the data if you wish to use your own data.
 
 
 ## Data preparation
