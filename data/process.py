@@ -15,13 +15,13 @@ def crop(image):
     image = image[pixels_to_remove:height - pixels_to_remove, pixels_to_remove:width - pixels_to_remove]
     # result = np.ones_like(image) * 255
     # 将图像转换为灰度图像
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     threshold_value = 150
     ret, binary_image = cv2.threshold(gray, threshold_value, 255, cv2.THRESH_BINARY)
     image = cv2.cvtColor(binary_image, cv2.COLOR_GRAY2RGB)
     
     # 转换为灰度图像
-    gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray_image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     # 查找黑色像素的坐标
     black_pixels = np.column_stack(np.where(gray_image == 0))
     # 找到离上边框最近的黑色像素
@@ -34,8 +34,8 @@ def crop(image):
     right_pixel = black_pixels[np.argmax(black_pixels[:, 1])]
 
     # 计算长方形的宽和高
-    width = right_pixel[1] - left_pixel[1]
-    height = bottom_pixel[0] - top_pixel[0]
+    width = right_pixel[1] - left_pixel[1] + 1
+    height = bottom_pixel[0] - top_pixel[0] + 1
     # 计算长方形的左上角坐标
     rectangle_top_left = (top_pixel[0], left_pixel[1])
     # 创建包含长方形内容的新图像
@@ -67,11 +67,27 @@ characters = os.listdir(data_path)
 # 循环读取characters中的所有图片并使用crop进行处理后覆盖保存
 for character in tqdm(characters):
     image = Image.open(os.path.join(data_path, character))
+    if image.mode == "RGBA":
+                # 创建一个白色背景的新图像，与原图像大小一致，并且是RGB模式
+                new_image = Image.new("RGB", image.size, (255, 255, 255))   
+                # 将原图像粘贴到新图像上，使用第四通道作为掩码
+                new_image.paste(image, mask=image.split()[3])
+                image = new_image
+
+    if image.mode == "P":
+                white_bg = Image.new("RGB", image.size, (255, 255, 255))
+                # 将图像粘贴到白色背景上
+                white_bg.paste(image, (0, 0))
+                image = white_bg
     # 将图片转换为numpy数组
     image = np.array(image)
     image = crop(image)
     # 转化为PIL图片
     image = Image.fromarray(image)
     # 保存图片
+    if character.endswith(".jpg"):
+        # 删除原来的图片
+        os.remove(os.path.join(data_path, character))
+        character = character.replace(".jpg", ".png")
     image.save(os.path.join(data_path, character))
     # print(character + "处理完成")
