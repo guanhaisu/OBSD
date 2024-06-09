@@ -3,7 +3,7 @@
 <p>
 
 <h2 align="center"> <a href="https://arxiv.org/abs/2406.00684">OBSD: Deciphering Oracle Bone Language with Diffusion Models </a></h2>
-<h4 align="center">Zhang Li, Biao Yang, Qiang Liu, Zhiyin Ma, Shuo Zhang, Jingxu Yang, Yabo Sun, Yuliang Liu, Xiang Bai </h4>
+<h4 align="center">Haisu Guan, Huanxin Yang, Xinyu Wang, Shengwei Han, Yongge Liu, Lianwen Jin, Xiang Bai, Yuliang Liu </h4>
 
 <h5 align="center">
 
