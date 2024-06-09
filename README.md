@@ -1,5 +1,13 @@
-# OBSD
+<p align="center">
+    <img src="https://s2.loli.net/2024/03/19/JnbZmeh18VsqkxF.png" width="250" style="margin-bottom: 0.2;"/>
+<p>
 
+<h3 align="center"> <a href="https://arxiv.org/abs/2406.00684">OBSD: Deciphering Oracle Bone Language with Diffusion Models</a></h3>
+<h2></h2>
+
+## News 
+* ```2024.5.16 ``` 🚀 OBSD is accepted by ACL 2024 Main. 
+* ```2024.2.15 ``` 🚀 Sourced code for OBSD is released.
 
 ## Oracle Bone Script Decipher.
 
