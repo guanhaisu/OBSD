@@ -13,6 +13,7 @@
 
 
 ## News 
+* ```2024.7.15 ``` 🚀 OBSD has been selected as the ACL 2024 Oral.
 * ```2024.5.16 ``` 🚀 OBSD is accepted by ACL 2024 Main. 
 * ```2024.2.15 ``` 🚀 Sourced code for OBSD is released.
 
