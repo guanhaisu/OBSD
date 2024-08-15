@@ -8,7 +8,7 @@
 <h5 align="center">
 
 [![arXiv](https://img.shields.io/badge/Arxiv-2406.00684-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2406.00684) 
-[![Demo](http://img.shields.io/badge/Demo-blue)](http://vlrlab-monkey.xyz:7680/OBSD)
+[![Demo](https://img.shields.io/badge/Demo-blue)](http://vlrlab-monkey.xyz:7680/OBSD)
 </h5>
 
 
@@ -19,7 +19,7 @@
 
 ## Oracle Bone Script Decipher.
 
-### Welcome to OBSD. Paper is [here](https://arxiv.org/abs/2406.00684), and we show the [demo](https://vlrlab-monkey.xyz:7680/OBSD).<br /> The dataset is available [here](https://github.com/RomanticGodVAN/character-Evolution-Dataset).<br /> 
+### Welcome to OBSD. Paper is [here](https://arxiv.org/abs/2406.00684), and we show the [demo](http://vlrlab-monkey.xyz:7680/OBSD).<br /> The dataset is available [here](https://github.com/RomanticGodVAN/character-Evolution-Dataset).<br /> 
 In [data/modern_kanji.zip](./data/modern_kanji.zip), we also provide images of modern Chinese characters corresponding to Oracle Bone Script, and you can run the [data/process.py](./data/process.py) to process the data if you wish to use your own data.
 
 
