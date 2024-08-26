@@ -25,16 +25,20 @@ In [data/modern_kanji.zip](./data/modern_kanji.zip), we also provide images of m
 
 ## Data preparation
 
-### You can arbitrarily divide the training and test sets from the dataset and place them in the following format.
+### You can arbitrarily divide the training and test sets from the dataset and place them in the following format. The image names in the input folder and the target folder need to correspond one to one. The input folder stores OBS images, and the target folder stores modern Chinese character images.
 ```plaintext
 Your_dataroot/
 ├── train/  (training set)
 │   ├── input/
-│   │   ├── train_1.png (OBS image)
-│   │   └── train_2.png
+│   │   ├── train_安_1.png (OBS image)
+│   │   ├── train_安_2.png 
+│   │   ├── train_北_1.png
+│   │   └── train_北_2.png
 │   └── target/
-│       ├── train_1.png (Modern Chinese Character image)
-│       └── train_2.png 
+│       ├── train_安_1.png (Modern Chinese Character image)
+│       ├── train_安_2.png 
+│       ├── train_北_1.png 
+│       └── train_北_2.png 
 │
 └── test/   (test set)
     ├── input/
