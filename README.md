@@ -97,4 +97,4 @@ CUDA_VISIBLE_DEVICES=0 python eval_diffusion.py
 ```bash
 CUDA_VISIBLE_DEVICES=0 python refine.py
 ```
-You can find the model weights here, [GoogleDrive](https://drive.google.com/drive/folders/1kRwi5sfHn6oufydDmd-7X9pPFDZzFjkk?usp=drive_link). 
+You can find the FontDiffuser weights here, [GoogleDrive](https://drive.google.com/drive/folders/1kRwi5sfHn6oufydDmd-7X9pPFDZzFjkk?usp=drive_link). 
