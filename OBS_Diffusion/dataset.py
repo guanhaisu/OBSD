@@ -102,9 +102,10 @@ class MyDataset(torch.utils.data.Dataset):
         except:
             gt_img = PIL.Image.open(os.path.join(self.dir, 'target', gt_name)).convert('RGB') if self.dir else \
                 PIL.Image.open(gt_name).convert('RGB')
-        input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
-        gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
         if self.parse_patches:
+            
+            input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
+            gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
             # wd_new, ht_new = input_img.size
             # wd_new = int(16 * np.ceil(wd_new / 16.0))
             # ht_new = int(16 * np.ceil(ht_new / 16.0))
