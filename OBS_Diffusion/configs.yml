@@ -1,6 +1,8 @@
 data:
     image_size: 64
     channels: 3
+    training_keep_image_size: True
+    testing_keep_image_size: True
     num_workers: 2
     train_data_dir: '/Your_dataroot/train/'  # path to directory of train data
     test_data_dir: '/Your_dataroot/test/'  # path to directory of test data

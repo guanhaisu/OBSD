@@ -22,11 +22,13 @@ class Data:
         train_dataset = MyDataset(train_path,
                                   n=self.config.training.patch_n,
                                   patch_size=self.config.data.image_size,
+                                  keep_image_size=self.config.data.training_keep_image_size,
                                   transforms=self.transforms,
                                   parse_patches=parse_patches)
         val_dataset = MyDataset(val_path,
                                 n=self.config.training.patch_n,
                                 patch_size=self.config.data.image_size,
+                                keep_image_size=self.config.data.testing_keep_image_size,
                                 transforms=self.transforms,
                                 parse_patches=parse_patches)
 
@@ -57,7 +59,7 @@ class Data:
 class MyDataset(torch.utils.data.Dataset):
     parse_patches: bool
 
-    def __init__(self, dir, patch_size, n, transforms, parse_patches=True):
+    def __init__(self, dir, patch_size, n, keep_image_size, transforms, parse_patches=True):
         super().__init__()
 
         self.dir = dir
@@ -70,6 +72,7 @@ class MyDataset(torch.utils.data.Dataset):
         self.transforms = transforms
         self.n = n
         self.parse_patches = parse_patches
+        self.keep_image_size = keep_image_size
 
     @staticmethod
     def get_params(img, output_size, n):
@@ -102,14 +105,18 @@ class MyDataset(torch.utils.data.Dataset):
         except:
             gt_img = PIL.Image.open(os.path.join(self.dir, 'target', gt_name)).convert('RGB') if self.dir else \
                 PIL.Image.open(gt_name).convert('RGB')
-        input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
-        gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
+        
+        if self.keep_image_size:
+                input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
+                gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
+        else:
+            wd_new, ht_new = input_img.size
+            wd_new = int(16 * np.ceil(wd_new / 16.0))
+            ht_new = int(16 * np.ceil(ht_new / 16.0))
+            input_img = input_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
+            gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
+
         if self.parse_patches:
-            # wd_new, ht_new = input_img.size
-            # wd_new = int(16 * np.ceil(wd_new / 16.0))
-            # ht_new = int(16 * np.ceil(ht_new / 16.0))
-            # input_img = input_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
-            # gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
             i, j, h, w = self.get_params(input_img, (self.patch_size, self.patch_size), self.n)
             input_img = self.n_random_crops(input_img, i, j, h, w)
             gt_img = self.n_random_crops(gt_img, i, j, h, w)
