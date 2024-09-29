@@ -107,8 +107,8 @@ class MyDataset(torch.utils.data.Dataset):
                 PIL.Image.open(gt_name).convert('RGB')
         
         if not self.keep_image_size:
-                input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
-                gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
+            input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
+            gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
         else:
             wd_new, ht_new = input_img.size
             wd_new = int(16 * np.ceil(wd_new / 16.0))
