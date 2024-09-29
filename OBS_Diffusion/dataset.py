@@ -106,7 +106,7 @@ class MyDataset(torch.utils.data.Dataset):
             gt_img = PIL.Image.open(os.path.join(self.dir, 'target', gt_name)).convert('RGB') if self.dir else \
                 PIL.Image.open(gt_name).convert('RGB')
         
-        if self.keep_image_size:
+        if not self.keep_image_size:
                 input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
                 gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
         else:
