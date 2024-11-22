@@ -113,6 +113,7 @@ class MyDataset(torch.utils.data.Dataset):
             wd_new, ht_new = input_img.size
             wd_new = int(16 * np.ceil(wd_new / 16.0))
             ht_new = int(16 * np.ceil(ht_new / 16.0))
+            assert wd_new >= self.patch_size and ht_new >= self.patch_size
             input_img = input_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
             gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
 
