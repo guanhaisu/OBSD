@@ -2,15 +2,11 @@ import argparse
 import os
 import yaml
 import torch
-import torch.backends.cudnn as cudnn
 import torch.utils.data
 import numpy as np
 from dataset import Data
 from models import DenoisingDiffusion
-from torch.utils.data.distributed import DistributedSampler
 import torch.distributed as dist
-
-
 
 
 def dict2namespace(config):
@@ -27,20 +23,28 @@ def dict2namespace(config):
 def main():
     parser = argparse.ArgumentParser()
     # 参数配置文件路径
-    parser.add_argument("--config", default='configs.yml', type=str, required=False, help="Path to the config file")
-    parser.add_argument('--local_rank', default=0, type=int)
+    parser.add_argument("--config", default='configsA6000.yml', type=str, required=False,
+                        help="Path to the config file")
+    parser.add_argument('--local_rank', default=-1, type=int)
     args = parser.parse_args()
     with open(os.path.join(args.config), "r") as f:
         config = yaml.safe_load(f)
     new_config = dict2namespace(config)
     config = new_config
-    config.local_rank = args.local_rank
-    dist.init_process_group(backend='nccl')
+    args.rank = int(os.environ["RANK"])
+    args.world_size = int(os.environ['WORLD_SIZE'])
+    args.gpu = int(os.environ['LOCAL_RANK'])
+    args.dist_url = 'env://'
+    print('| distributed init (rank {}): {}, gpu {}'.format(
+        args.rank, args.dist_url, args.gpu), flush=True)
+    torch.cuda.set_device(args.gpu)
+    dist.init_process_group(backend='nccl', init_method=args.dist_url,
+                            world_size=args.world_size, rank=args.rank)
     dist.barrier()
-    world_size = dist.get_world_size()
     # 判断是否使用 cuda
+    config.local_rank = args.gpu
     device = torch.device("cuda", config.local_rank) if torch.cuda.is_available() else torch.device("cpu")
-    print("=> using device: {}".format(device))
+    # print("=> using device: {}".format(device))
     config.device = device
 
     # 随机种子
@@ -55,7 +59,7 @@ def main():
     _, val_loader = DATASET.get_loaders()
 
     # 创建模型
-    print("=> creating denoising diffusion model")
+    print("=> creating denoising diffusion model", flush=True)
     diffusion = DenoisingDiffusion(config)
     diffusion.train(DATASET)
 
