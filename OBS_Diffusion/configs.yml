@@ -39,6 +39,7 @@ training:
     validation_freq: 10000
     resume: '/Your_save_root/diffusion_model'  # path to pretrained model
     seed: 61 # random seed
+    amp: False # 混合精度训练
 
 sampling:
     batch_size: 4

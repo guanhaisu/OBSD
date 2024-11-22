@@ -8,7 +8,8 @@ import utils
 from models.unet import DiffusionUNet
 import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from utils.misc import NativeScalerWithGradNormCount as NativeScaler
+from tqdm import tqdm
 
 
 def data_transform(X):
@@ -25,14 +26,14 @@ class EMAHelper(object):
         self.shadow = {}
 
     def register(self, module):
-        if isinstance(module, nn.DataParallel) or isinstance(module, nn.parallel.DistributedDataParallel):
+        if isinstance(module, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
             module = module.module
         for name, param in module.named_parameters():
             if param.requires_grad:
                 self.shadow[name] = param.data.clone()
 
     def update(self, module, device):
-        if isinstance(module, nn.DataParallel) or isinstance(module, nn.parallel.DistributedDataParallel):
+        if isinstance(module, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
             module = module.module
         for name, param in module.named_parameters():
             if param.requires_grad:
@@ -40,7 +41,7 @@ class EMAHelper(object):
                 self.shadow[name].data = (1. - self.mu) * param.data + self.mu * self.shadow[name].data
 
     def ema(self, module):
-        if isinstance(module, nn.DataParallel) or isinstance(module, nn.parallel.DistributedDataParallel):
+        if isinstance(module, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
             module = module.module
         for name, param in module.named_parameters():
             if param.requires_grad:
@@ -61,8 +62,9 @@ class EMAHelper(object):
     def state_dict(self):
         return self.shadow
 
-    def load_state_dict(self, state_dict):
-        self.shadow = state_dict
+    def load_state_dict(self, state_dict, device):
+        for name, param in state_dict.items():
+            self.shadow[name] = param.to(device)
 
 
 def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
@@ -89,7 +91,7 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
 def noise_estimation_loss(model, x0, t, e, b):
     a = (1 - b).cumprod(dim=0).index_select(0, t).view(-1, 1, 1, 1)
     x = x0[:, 3:, :, :] * a.sqrt() + e * (1.0 - a).sqrt()
-    output = model(torch.cat([x0[:, :3, :, :], x], dim=1), t.float())
+    output = model(torch.cat([x0[:, :3, :, :], x], dim=1), t.float()).float()
     return (e - output).square().sum(dim=(1, 2, 3)).mean(dim=0)
 
 
@@ -98,6 +100,7 @@ class DenoisingDiffusion(object):
         super().__init__()
         self.config = config
         self.device = config.device
+        self.amp = config.training.amp
         self.writer = SummaryWriter(config.data.tensorboard)
         self.model = DiffusionUNet(config)
         self.model.to(self.device)
@@ -115,7 +118,9 @@ class DenoisingDiffusion(object):
         self.ema_helper.register(self.model)
 
         self.optimizer = utils.optimize.get_optimizer(self.config, self.model.parameters())
-        # self.scheduler = CosineAnnealingLR(self.optimizer, T_max=config.training.n_epochs)
+        if config.training.amp:
+            self.loss_scaler = NativeScaler()
+
         self.start_epoch, self.step = 0, 0
 
         betas = get_beta_schedule(
@@ -129,17 +134,17 @@ class DenoisingDiffusion(object):
         self.num_timesteps = betas.shape[0]
 
     def load_ddm_ckpt(self, load_path, ema=False):
-        if self.device == torch.device('cpu'):
-            checkpoint = utils.logging.load_checkpoint(load_path, self.device)
-        else:
-            checkpoint = utils.logging.load_checkpoint(load_path, None)
+        checkpoint = utils.logging.load_checkpoint(load_path, 'cpu')
         self.start_epoch = checkpoint['epoch']
         self.step = checkpoint['step']
         self.model.load_state_dict(checkpoint['state_dict'], strict=True)
         self.optimizer.load_state_dict(checkpoint['optimizer'])
-        self.ema_helper.load_state_dict(checkpoint['ema_helper'])
-        # if not self.test:
-        #     self.scheduler.load_state_dict(checkpoint['scheduler'])
+        self.ema_helper.load_state_dict(checkpoint['ema_helper'], 'cuda')
+        if self.amp:
+            try:
+                self.loss_scaler.load_state_dict(checkpoint['scaler'])
+            except KeyError:
+                print('=> failed to load scaler')
         if ema:
             self.ema_helper.ema(self.model)
         print("=> loaded checkpoint '{}' (epoch {}, step {})".format(load_path, checkpoint['epoch'], self.step))
@@ -152,26 +157,26 @@ class DenoisingDiffusion(object):
             self.load_ddm_ckpt(pretrained_model_path)
         dist.barrier()
         # 训练
-        for epoch in range(self.start_epoch, self.config.training.n_epochs):
-            if (epoch == 0) and dist.get_rank() == 0:
-                utils.logging.save_checkpoint({
-                    'epoch': epoch + 1,
-                    'step': self.step,
-                    'state_dict': self.model.state_dict(),
-                    'optimizer': self.optimizer.state_dict(),
-                    'ema_helper': self.ema_helper.state_dict(),
-                    'config': self.config,
-                    # 'scheduler': self.scheduler.state_dict()
-                }, filename=self.config.training.resume + '_' + str(epoch))
-                utils.logging.save_checkpoint({
-                    'epoch': epoch + 1,
-                    'step': self.step,
-                    'state_dict': self.model.state_dict(),
-                    'optimizer': self.optimizer.state_dict(),
-                    'ema_helper': self.ema_helper.state_dict(),
-                    'config': self.config,
-                    # 'scheduler': self.scheduler.state_dict()
-                }, filename=self.config.training.resume)
+        for epoch in tqdm(range(self.start_epoch, self.config.training.n_epochs)):
+
+            # if (epoch == 0) and dist.get_rank() == 0:
+            #     utils.logging.save_checkpoint({
+            #         'epoch': epoch + 1,
+            #         'step': self.step,
+            #         'state_dict': self.model.state_dict(),
+            #         'optimizer': self.optimizer.state_dict(),
+            #         'ema_helper': self.ema_helper.state_dict(),
+            #         'config': self.config,
+            #     }, filename=self.config.training.resume + '_' + str(epoch))
+            #     utils.logging.save_checkpoint({
+            #         'epoch': epoch + 1,
+            #         'step': self.step,
+            #         'state_dict': self.model.state_dict(),
+            #         'optimizer': self.optimizer.state_dict(),
+            #         'ema_helper': self.ema_helper.state_dict(),
+            #         'config': self.config,
+            #     }, filename=self.config.training.resume)
+
             if dist.get_rank() == 0:
                 print('=> current epoch: ', epoch)
             data_start = time.time()
@@ -192,19 +197,30 @@ class DenoisingDiffusion(object):
                 # antithetic sampling
                 t = torch.randint(low=0, high=self.num_timesteps, size=(n // 2 + 1,)).to(self.device)
                 t = torch.cat([t, self.num_timesteps - t - 1], dim=0)[:n]
-                loss = noise_estimation_loss(self.model, x, t, e, b)
-                current_lr = self.optimizer.param_groups[0]['lr']
 
-                if self.step % 10 == 0:
+                # 混合精度训练
+                self.optimizer.zero_grad()
+                if self.amp:
+                    with torch.cuda.amp.autocast():
+                        loss = noise_estimation_loss(self.model, x, t, e, b)
+                    self.loss_scaler(loss, self.optimizer, parameters=self.model.parameters(), update_grad=True)
+                    self.optimizer.zero_grad()
+                    torch.cuda.synchronize()
+                    self.ema_helper.update(self.model, self.device)
+                else:
+                    loss = noise_estimation_loss(self.model, x, t, e, b)
+                    loss.backward()
+                    self.optimizer.step()
+                    self.optimizer.zero_grad()
+                    torch.cuda.synchronize()
+                    self.ema_helper.update(self.model, self.device)
+
+                current_lr = self.optimizer.param_groups[0]['lr']
+                if self.step % 50 == 0 and dist.get_rank() == 0:
                     print(
                         'rank: %d, step: %d, loss: %.6f, lr: %.6f, time consumption: %.6f' % (
                             dist.get_rank(), self.step, loss.item(), current_lr, data_time / (i + 1)))
 
-                # 更新参数
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-                self.ema_helper.update(self.model, self.device)
                 data_start = time.time()
 
                 if self.step % self.config.training.validation_freq == 0:
@@ -225,7 +241,7 @@ class DenoisingDiffusion(object):
                     'optimizer': self.optimizer.state_dict(),
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
-                    # 'scheduler': self.scheduler.state_dict()
+                    'scaler': self.loss_scaler.state_dict() if self.amp else None
                 }, filename=self.config.training.resume + '_' + str(epoch))
                 utils.logging.save_checkpoint({
                     'epoch': epoch + 1,
@@ -234,7 +250,7 @@ class DenoisingDiffusion(object):
                     'optimizer': self.optimizer.state_dict(),
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
-                    # 'scheduler': self.scheduler.state_dict()
+                    'scaler': self.loss_scaler.state_dict() if self.amp else None
                 }, filename=self.config.training.resume)
 
     def sample_image(self, x_cond, x, last=True, patch_locs=None, patch_size=None):
