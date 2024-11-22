@@ -74,14 +74,14 @@ cd OBS_Diffusion
 ```bash
 conda create -n OBSD python=3.9
 conda activate OBSD
-conda install pytorch==1.12.1 torchvision==0.13.1 torchaudio==0.12.1 cudatoolkit=11.3 -c pytorch
+conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -r requirements.txt
 ```
 
 
 ## Start training
 ```bash
-CUDA_VISIBLE_DEVICES=0 python -m torch.distributed.launch --nproc_per_node=1 train_diffusion.py
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.launch --nproc_per_node=8 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=1234 train_diffusion.py
 ```
 
 ### You can monitor the training process.
