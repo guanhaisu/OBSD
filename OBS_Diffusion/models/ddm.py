@@ -5,10 +5,12 @@ import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
 import utils
+import utils.misc as misc
 from models.unet import DiffusionUNet
 import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
 from utils.misc import NativeScalerWithGradNormCount as NativeScaler
+
 from tqdm import tqdm
 
 
@@ -24,6 +26,7 @@ class EMAHelper(object):
     def __init__(self, mu=0.9999):
         self.mu = mu
         self.shadow = {}
+        self.back = {}
 
     def register(self, module):
         if isinstance(module, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
@@ -47,17 +50,19 @@ class EMAHelper(object):
             if param.requires_grad:
                 param.data.copy_(self.shadow[name].data)
 
-    def ema_copy(self, module):
-        if isinstance(module, nn.DataParallel) or isinstance(module, nn.parallel.DistributedDataParallel):
-            inner_module = module.module
-            module_copy = type(inner_module)(inner_module.config).to(inner_module.config.device)
-            module_copy.load_state_dict(inner_module.state_dict())
-            module_copy = nn.DataParallel(module_copy)
-        else:
-            module_copy = type(module)(module.config).to(module.config.device)
-            module_copy.load_state_dict(module.state_dict())
-        self.ema(module_copy)
-        return module_copy
+    def store(self, module):
+        if isinstance(module, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+            module = module.module
+        for name, param in module.named_parameters():
+            if param.requires_grad:
+                self.back[name] = param.data.clone()
+
+    def restore(self, module):
+        if isinstance(module, (nn.DataParallel, nn.parallel.DistributedDataParallel)):
+            module = module.module
+        for name, param in module.named_parameters():
+            if param.requires_grad:
+                param.data.copy_(self.back[name].data)
 
     def state_dict(self):
         return self.shadow
@@ -65,6 +70,9 @@ class EMAHelper(object):
     def load_state_dict(self, state_dict, device):
         for name, param in state_dict.items():
             self.shadow[name] = param.to(device)
+
+    def clear(self):
+        self.back = {}
 
 
 def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_timesteps):
@@ -156,27 +164,9 @@ class DenoisingDiffusion(object):
         if os.path.isfile(pretrained_model_path):
             self.load_ddm_ckpt(pretrained_model_path)
         dist.barrier()
+
         # 训练
         for epoch in tqdm(range(self.start_epoch, self.config.training.n_epochs)):
-
-            # if (epoch == 0) and dist.get_rank() == 0:
-            #     utils.logging.save_checkpoint({
-            #         'epoch': epoch + 1,
-            #         'step': self.step,
-            #         'state_dict': self.model.state_dict(),
-            #         'optimizer': self.optimizer.state_dict(),
-            #         'ema_helper': self.ema_helper.state_dict(),
-            #         'config': self.config,
-            #     }, filename=self.config.training.resume + '_' + str(epoch))
-            #     utils.logging.save_checkpoint({
-            #         'epoch': epoch + 1,
-            #         'step': self.step,
-            #         'state_dict': self.model.state_dict(),
-            #         'optimizer': self.optimizer.state_dict(),
-            #         'ema_helper': self.ema_helper.state_dict(),
-            #         'config': self.config,
-            #     }, filename=self.config.training.resume)
-
             if dist.get_rank() == 0:
                 print('=> current epoch: ', epoch)
             data_start = time.time()
@@ -216,20 +206,24 @@ class DenoisingDiffusion(object):
                     self.ema_helper.update(self.model, self.device)
 
                 current_lr = self.optimizer.param_groups[0]['lr']
+                loss_value_reduce = misc.all_reduce_mean(loss.item())
+
                 if self.step % 50 == 0 and dist.get_rank() == 0:
                     print(
                         'rank: %d, step: %d, loss: %.6f, lr: %.6f, time consumption: %.6f' % (
-                            dist.get_rank(), self.step, loss.item(), current_lr, data_time / (i + 1)))
+                            dist.get_rank(), self.step, loss_value_reduce, current_lr, data_time / (i + 1)))
+                    self.writer.add_scalar('train/loss', loss_value_reduce, self.step)
+                    self.writer.add_scalar('train/lr', current_lr, self.step)
 
                 data_start = time.time()
 
                 if self.step % self.config.training.validation_freq == 0:
+                    self.ema_helper.store(self.model)
+                    self.ema_helper.ema(self.model)
                     self.model.eval()
                     self.sample_validation_patches(val_loader, self.step)
-
-                if (self.step % 100 == 0) and dist.get_rank() == 0:
-                    self.writer.add_scalar('train/loss', loss.item(), self.step)
-                    self.writer.add_scalar('train/lr', current_lr, self.step)
+                    self.ema_helper.restore(self.model)
+                    self.model.train()
 
             # self.scheduler.step()
             # 保存模型

@@ -1,4 +1,5 @@
 import torch
+import torch.distributed as dist
 from torch import inf
 
 
@@ -45,3 +46,28 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> torch.Tensor:
         total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]),
                                 norm_type)
     return total_norm
+
+
+def is_dist_avail_and_initialized():
+    if not dist.is_available():
+        return False
+    if not dist.is_initialized():
+        return False
+    return True
+
+
+def get_world_size():
+    if not is_dist_avail_and_initialized():
+        return 1
+    return dist.get_world_size()
+
+
+def all_reduce_mean(x):
+    world_size = get_world_size()
+    if world_size > 1:
+        x_reduce = torch.tensor(x).cuda()
+        dist.all_reduce(x_reduce)
+        x_reduce /= world_size
+        return x_reduce.item()
+    else:
+        return x
