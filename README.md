@@ -91,10 +91,10 @@ tensorboard --logdir ./logs
 
 ## Test
 ```bash
-CUDA_VISIBLE_DEVICES=0 python eval_diffusion.py
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.run --nproc_per_node=8 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=1234 eval_diffusion.py
 ```
 ### If you want to refine the generated character results, you can run the following script. Also be careful to change your file paths.
 ```bash
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.run --nproc_per_node=8 --nnodes=1 --node_rank=0 --master_addr=localhost --master_port=1234 refine.py
+CUDA_VISIBLE_DEVICES=0 python refine.py
 ```
 You can find the FontDiffuser weights here, [GoogleDrive](https://drive.google.com/drive/folders/1kRwi5sfHn6oufydDmd-7X9pPFDZzFjkk?usp=drive_link). 
