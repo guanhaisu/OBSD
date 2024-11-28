@@ -2,16 +2,16 @@ import argparse
 import os
 import yaml
 import torch
-import torch.backends.cudnn as cudnn
 import numpy as np
 from dataset import Data
 from models import DenoisingDiffusion, DiffusiveRestoration
+import torch.distributed as dist
 
 
 def config_get():
     parser = argparse.ArgumentParser()
     # 参数配置文件路径
-    parser.add_argument("--config", default='configs.yml', type=str, required=False, help="Path to the config file")
+    parser.add_argument("--config", default='configsA6000.yml', type=str, required=False, help="Path to the config file")
     args = parser.parse_args()
 
     with open(os.path.join(args.config), "r") as f:
@@ -33,11 +33,30 @@ def dict2namespace(config):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--local_rank', default=-1, type=int)
     config = config_get()
+    args = parser.parse_args()
 
     # 判断是否使用 cuda
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     print("=> using device: {}".format(device))
+    config.device = device
+
+    args.rank = int(os.environ["RANK"])
+    args.world_size = int(os.environ['WORLD_SIZE'])
+    args.gpu = int(os.environ['LOCAL_RANK'])
+    args.dist_url = 'env://'
+    print('| distributed init (rank {}): {}, gpu {}'.format(
+        args.rank, args.dist_url, args.gpu), flush=True)
+    torch.cuda.set_device(args.gpu)
+    dist.init_process_group(backend='nccl', init_method=args.dist_url,
+                            world_size=args.world_size, rank=args.rank)
+    dist.barrier()
+    # 判断是否使用 cuda
+    config.local_rank = args.gpu
+    device = torch.device("cuda", config.local_rank) if torch.cuda.is_available() else torch.device("cpu")
+    # print("=> using device: {}".format(device))
     config.device = device
 
     # 随机种子

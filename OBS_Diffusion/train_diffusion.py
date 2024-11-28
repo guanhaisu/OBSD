@@ -6,6 +6,7 @@ import torch.utils.data
 import numpy as np
 from dataset import Data
 from models import DenoisingDiffusion
+from utils import misc
 import torch.distributed as dist
 
 
@@ -23,7 +24,7 @@ def dict2namespace(config):
 def main():
     parser = argparse.ArgumentParser()
     # 参数配置文件路径
-    parser.add_argument("--config", default='configsA6000.yml', type=str, required=False,
+    parser.add_argument("--config", default='configs.yml', type=str, required=False,
                         help="Path to the config file")
     parser.add_argument('--local_rank', default=-1, type=int)
     args = parser.parse_args()
@@ -47,6 +48,10 @@ def main():
     # print("=> using device: {}".format(device))
     config.device = device
 
+    eff_batch_size = config.training.batch_size * misc.get_world_size()
+    assert config.optim.lr is not None
+    config.optim.lr = config.optim.lr * eff_batch_size / 8
+
     # 随机种子
     torch.manual_seed(config.training.seed)
     np.random.seed(config.training.seed)
@@ -59,7 +64,10 @@ def main():
     _, val_loader = DATASET.get_loaders()
 
     # 创建模型
-    print("=> creating denoising diffusion model", flush=True)
+    if dist.get_rank() == 0:
+        print("=> creating denoising diffusion model", flush=True)
+        print("lr: %.2e" % config.optim.lr)
+        print("effective batch size: %d" % eff_batch_size)
     diffusion = DenoisingDiffusion(config)
     diffusion.train(DATASET)
 

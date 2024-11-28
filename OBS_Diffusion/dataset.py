@@ -39,9 +39,12 @@ class Data:
         # 训练数据
 
         # 评估数据
+        # val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=self.config.sampling.batch_size,
+        #                                          shuffle=True, num_workers=self.config.data.num_workers,
+        #                                          pin_memory=True)
         val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=self.config.sampling.batch_size,
-                                                 shuffle=True, num_workers=self.config.data.num_workers,
-                                                 pin_memory=True)
+                                                 shuffle=False, num_workers=self.config.data.num_workers,
+                                                 pin_memory=True, sampler=DistributedSampler(val_dataset))
 
         if not test:
             train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=self.config.training.batch_size,

@@ -4,13 +4,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.backends.cudnn as cudnn
+import torchvision.utils as tvu
 import utils
 import utils.misc as misc
 from models.unet import DiffusionUNet
 import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
 from utils.misc import NativeScalerWithGradNormCount as NativeScaler
-
+import utils.lr_sched as lr_sched
 from tqdm import tqdm
 
 
@@ -114,11 +115,13 @@ class DenoisingDiffusion(object):
         self.model.to(self.device)
         self.test = test
         if test:
-            if self.device.index is not None:
-                self.model = torch.nn.DataParallel(self.model, device_ids=[self.device.index],
-                                                   output_device=self.device.index)
-            else:
-                self.model = torch.nn.DataParallel(self.model)
+            # if self.device.index is not None:
+            #     self.model = torch.nn.DataParallel(self.model, device_ids=[self.device.index],
+            #                                        output_device=self.device.index)
+            # else:
+            #     self.model = torch.nn.DataParallel(self.model)
+            self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[config.local_rank],
+                                                                   output_device=config.local_rank)
         else:
             self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[config.local_rank],
                                                                    output_device=config.local_rank)
@@ -188,6 +191,8 @@ class DenoisingDiffusion(object):
                 t = torch.randint(low=0, high=self.num_timesteps, size=(n // 2 + 1,)).to(self.device)
                 t = torch.cat([t, self.num_timesteps - t - 1], dim=0)[:n]
 
+                lr_sched.adjust_learning_rate(self.optimizer, i / len(train_loader) + epoch, self.config.optim)
+
                 # 混合精度训练
                 self.optimizer.zero_grad()
                 if self.amp:
@@ -247,6 +252,26 @@ class DenoisingDiffusion(object):
                     'scaler': self.loss_scaler.state_dict() if self.amp else None
                 }, filename=self.config.training.resume)
 
+        if dist.get_rank() == 0:
+            utils.logging.save_checkpoint({
+                'epoch': self.config.training.n_epochs,
+                'step': self.step,
+                'state_dict': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'ema_helper': self.ema_helper.state_dict(),
+                'config': self.config,
+                'scaler': self.loss_scaler.state_dict() if self.amp else None
+            }, filename=self.config.training.resume + '_' + str(epoch))
+            utils.logging.save_checkpoint({
+                'epoch': self.config.training.n_epochs,
+                'step': self.step,
+                'state_dict': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+                'ema_helper': self.ema_helper.state_dict(),
+                'config': self.config,
+                'scaler': self.loss_scaler.state_dict() if self.amp else None
+            }, filename=self.config.training.resume)
+
     def sample_image(self, x_cond, x, last=True, patch_locs=None, patch_size=None):
         skip = self.config.diffusion.num_diffusion_timesteps // self.config.sampling.sampling_timesteps
         seq = range(0, self.config.diffusion.num_diffusion_timesteps, skip)
@@ -269,6 +294,7 @@ class DenoisingDiffusion(object):
                 break
             n = x.size(0)
             x_cond = x[:, :3, :, :].to(self.device)  # 条件图像
+            x_gt = x[:, 3:, :, :].to(self.device)  # GT图像
             x_cond = data_transform(x_cond)
             x = torch.randn(n, 3, self.config.data.image_size, self.config.data.image_size, device=self.device)
             x = self.sample_image(x_cond, x)
@@ -276,5 +302,8 @@ class DenoisingDiffusion(object):
             x_cond = inverse_data_transform(x_cond)
 
             for i in range(n):
-                utils.logging.save_image(x_cond[i], os.path.join(image_folder, str(step), f"{i}_cond.png"))
-                utils.logging.save_image(x[i], os.path.join(image_folder, str(step), f"{i}.png"))
+                # utils.logging.save_image(x_cond[i], os.path.join(image_folder, str(step), f"{i}_cond.png"))
+                # utils.logging.save_image(x[i], os.path.join(image_folder, str(step), f"{i}.png"))
+                combined_image = torch.cat((x_cond[i].unsqueeze(0), x[i].unsqueeze(0), x_gt[i].unsqueeze(0)), dim=0)
+                img = tvu.make_grid(combined_image, nrow=3, normalize=True, scale_each=True)
+                utils.logging.save_image(img, os.path.join(image_folder, str(step), f"{i + 1}_{y[len(y) * i // n]}.png"))
