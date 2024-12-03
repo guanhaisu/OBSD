@@ -37,7 +37,7 @@ training:
     n_iters: 2000000
     snapshot_freq: 20  # model save frequency
     validation_freq: 10000  # validation frequency
-    resume: '/Your_save_root/diffusion_model'  # path to pretrained model
+    resume: '/Your_save_root/diffusion_model'  # path to save the model
     seed: 61 # random seed
     amp: False # automatic mixed precision
 
