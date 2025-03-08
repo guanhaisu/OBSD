@@ -8,7 +8,7 @@
 <h5 align="center">
 
 [![arXiv](https://img.shields.io/badge/Arxiv-2406.00684-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2406.00684) 
-[![Demo](https://img.shields.io/badge/Demo-blue)](http://vlrlab-monkey.xyz:7680/OBSD)
+[![Demo](https://img.shields.io/badge/Demo-blue)](http://vlrlabmonkey.xyz:7680/OBSD)
 </h5>
 
 
