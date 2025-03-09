@@ -29,7 +29,7 @@ class DiffusiveRestoration:
         image_folder = self.config.data.test_save_dir
         with torch.no_grad():
             for i, (x, y) in tqdm(enumerate(val_loader)):
-                print(f"=> starting processing image named {y}")
+                print(f"=> starting processing image named {y}", flush=True)
                 x = x.flatten(start_dim=0, end_dim=1) if x.ndim == 5 else x
                 x_cond = x[:, :3, :, :].to(self.diffusion.device)
                 x_output = self.diffusive_restoration(x_cond, r=r)

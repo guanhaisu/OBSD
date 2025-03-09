@@ -8,7 +8,7 @@ data:
     test_data_dir: '/Your_dataroot/test/'  # path to directory of test data
     test_save_dir: 'Your_project_path/OBS_Diffusion/result'
     val_save_dir: 'Your_project_path/OBS_Diffusion/validation/'
-    grid_r: 16
+    grid_r: 12
     conditional: True
     tensorboard: 'Your_project_path/OBS_Diffusion/logs'
 
@@ -23,6 +23,8 @@ model:
     ema_rate: 0.999
     ema: True
     resamp_with_conv: True
+    use_vlb: False
+    learn_sigma: False
 
 diffusion:
     beta_schedule: linear
@@ -32,17 +34,18 @@ diffusion:
 
 training:
     patch_n: 8
-    batch_size: 8
+    batch_size: 12
     n_epochs: 500
     n_iters: 2000000
-    snapshot_freq: 20  # model save frequency
+    snapshot_freq: 30  # model save frequency
     validation_freq: 10000  # validation frequency
     resume: '/Your_save_root/diffusion_model'  # path to save the model
     seed: 61 # random seed
     amp: False # automatic mixed precision
+    init_scale: 2.0 ** 16
 
 sampling:
-    batch_size: 4
+    batch_size: 1
     last_only: True
     sampling_timesteps: 50
 
@@ -50,7 +53,7 @@ optim:
     weight_decay: 0.000
     optimizer: "Adam"
     lr: 0.00002
-    warmup_epochs: 100
+    warmup_epochs: 20
     lr_schedule: "constant"
     amsgrad: False
     eps: 0.00000001

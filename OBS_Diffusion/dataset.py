@@ -4,6 +4,7 @@ import numpy as np
 import torchvision
 import torch.utils.data
 import PIL
+import PIL.Image
 import re
 import random
 from torch.utils.data.distributed import DistributedSampler
@@ -20,16 +21,18 @@ class Data:
         val_path = os.path.join(self.config.data.test_data_dir)
 
         train_dataset = MyDataset(train_path,
-                                  n=self.config.training.patch_n,
+                                  patch_n=self.config.training.patch_n,
                                   patch_size=self.config.data.image_size,
-                                  keep_image_size=self.config.data.training_keep_image_size,
                                   transforms=self.transforms,
+                                  grid_r=self.config.data.grid_r,
+                                  keep_image_size=self.config.data.training_keep_image_size,
                                   parse_patches=parse_patches)
         val_dataset = MyDataset(val_path,
-                                n=self.config.training.patch_n,
+                                patch_n=self.config.training.patch_n,
                                 patch_size=self.config.data.image_size,
                                 keep_image_size=self.config.data.testing_keep_image_size,
                                 transforms=self.transforms,
+                                grid_r=self.config.data.grid_r,
                                 parse_patches=parse_patches)
 
         if not parse_patches:
@@ -42,6 +45,7 @@ class Data:
         # val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=self.config.sampling.batch_size,
         #                                          shuffle=True, num_workers=self.config.data.num_workers,
         #                                          pin_memory=True)
+
         val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=self.config.sampling.batch_size,
                                                  shuffle=False, num_workers=self.config.data.num_workers,
                                                  pin_memory=True, sampler=DistributedSampler(val_dataset))
@@ -62,20 +66,21 @@ class Data:
 class MyDataset(torch.utils.data.Dataset):
     parse_patches: bool
 
-    def __init__(self, dir, patch_size, n, keep_image_size, transforms, parse_patches=True):
+    def __init__(self, dir_path, patch_size, patch_n, transforms, grid_r, keep_image_size, parse_patches=True):
         super().__init__()
 
-        self.dir = dir
-        input_names = os.listdir(dir + 'input')
-        gt_names = os.listdir(dir + 'target')
+        self.dir = dir_path
+        input_names = os.listdir(dir_path + 'input')
+        gt_names = os.listdir(dir_path + 'target')
 
         self.input_names = input_names
         self.gt_names = gt_names
         self.patch_size = patch_size
         self.transforms = transforms
-        self.n = n
-        self.parse_patches = parse_patches
+        self.n = patch_n
+        self.grid_r = int(grid_r)
         self.keep_image_size = keep_image_size
+        self.parse_patches = parse_patches
 
     @staticmethod
     def get_params(img, output_size, n):
@@ -102,23 +107,19 @@ class MyDataset(torch.utils.data.Dataset):
         img_id = re.split('/', input_name)[-1][:-4]
         input_img = PIL.Image.open(os.path.join(self.dir, 'input', input_name)).convert(
             'RGB') if self.dir else PIL.Image.open(input_name)
-        try:
-            gt_img = PIL.Image.open(os.path.join(self.dir, 'target', gt_name)).convert(
-                'RGB') if self.dir else PIL.Image.open(gt_name)
-        except:
-            gt_img = PIL.Image.open(os.path.join(self.dir, 'target', gt_name)).convert('RGB') if self.dir else \
-                PIL.Image.open(gt_name).convert('RGB')
-        
+        gt_img = PIL.Image.open(os.path.join(self.dir, 'target', gt_name)).convert(
+            'RGB') if self.dir else PIL.Image.open(gt_name)
+
         if not self.keep_image_size:
-            input_img = input_img.resize((100, 100), PIL.Image.LANCZOS)
-            gt_img = gt_img.resize((100, 100), PIL.Image.LANCZOS)
+            input_img = input_img.resize((100, 100), PIL.Image.Resampling.BILINEAR)
+            gt_img = gt_img.resize((100, 100), PIL.Image.Resampling.BILINEAR)
         else:
             wd_new, ht_new = input_img.size
-            wd_new = int(16 * np.ceil(wd_new / 16.0))
-            ht_new = int(16 * np.ceil(ht_new / 16.0))
+            wd_new = int(self.grid_r * np.ceil(wd_new / float(self.grid_r)))
+            ht_new = int(self.grid_r * np.ceil(ht_new / float(self.grid_r)))
             assert wd_new >= self.patch_size and ht_new >= self.patch_size
-            input_img = input_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
-            gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
+            input_img = input_img.resize((wd_new, ht_new), PIL.Image.Resampling.BILINEAR)
+            gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.Resampling.BILINEAR)
 
         if self.parse_patches:
             i, j, h, w = self.get_params(input_img, (self.patch_size, self.patch_size), self.n)
@@ -127,8 +128,8 @@ class MyDataset(torch.utils.data.Dataset):
             outputs = [torch.cat([self.transforms(input_img[i]), self.transforms(gt_img[i])], dim=0)
                        for i in range(self.n)]
             return torch.stack(outputs, dim=0), img_id
+
         else:
-            # Resizing images to multiples of 16 for whole-image restoration
             wd_new, ht_new = input_img.size
             if ht_new > wd_new and ht_new > 1024:
                 wd_new = int(np.ceil(wd_new * 1024 / ht_new))
@@ -136,11 +137,10 @@ class MyDataset(torch.utils.data.Dataset):
             elif ht_new <= wd_new and wd_new > 1024:
                 ht_new = int(np.ceil(ht_new * 1024 / wd_new))
                 wd_new = 1024
-            wd_new = int(16 * np.ceil(wd_new / 16.0))
-            ht_new = int(16 * np.ceil(ht_new / 16.0))
-            input_img = input_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
-            gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.LANCZOS)
-
+            wd_new = int(np.ceil((wd_new - self.patch_size) / float(self.grid_r)) * self.grid_r + self.patch_size)
+            ht_new = int(np.ceil((ht_new - self.patch_size) / float(self.grid_r)) * self.grid_r + self.patch_size)
+            input_img = input_img.resize((wd_new, ht_new), PIL.Image.Resampling.BILINEAR)
+            gt_img = gt_img.resize((wd_new, ht_new), PIL.Image.Resampling.BILINEAR)
             return torch.cat([self.transforms(input_img), self.transforms(gt_img)], dim=0), img_id
 
     def __getitem__(self, index):

@@ -1,3 +1,5 @@
+import builtins
+import datetime
 import torch
 import torch.distributed as dist
 from torch import inf
@@ -6,8 +8,8 @@ from torch import inf
 class NativeScalerWithGradNormCount:
     state_dict_key = "amp_scaler"
 
-    def __init__(self):
-        self._scaler = torch.cuda.amp.GradScaler()
+    def __init__(self, init_scale=2.0 ** 16):
+        self._scaler = torch.cuda.amp.GradScaler(init_scale=init_scale)
 
     def __call__(self, loss, optimizer, clip_grad=3.0, parameters=None, create_graph=False, update_grad=True):
         self._scaler.scale(loss).backward(create_graph=create_graph)
@@ -19,6 +21,9 @@ class NativeScalerWithGradNormCount:
             else:
                 self._scaler.unscale_(optimizer)
                 norm = get_grad_norm_(parameters)
+
+            if torch.isnan(norm).any():
+                print('NaN in gradients')
             self._scaler.step(optimizer)
             self._scaler.update()
         else:
@@ -71,3 +76,20 @@ def all_reduce_mean(x):
         return x_reduce.item()
     else:
         return x
+
+
+def setup_for_distributed(is_master):
+    """
+    This function disables printing when not in master process
+    """
+    builtin_print = builtins.print
+
+    def print(*args, **kwargs):
+        force = kwargs.pop('force', False)
+        force = force or (get_world_size() > 8)
+        if is_master or force:
+            now = datetime.datetime.now().time()
+            builtin_print('[{}] '.format(now), end='')  # print with time stamp
+            builtin_print(*args, **kwargs)
+
+    builtins.print = print

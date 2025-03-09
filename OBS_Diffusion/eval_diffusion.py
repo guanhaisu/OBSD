@@ -11,7 +11,7 @@ import torch.distributed as dist
 def config_get():
     parser = argparse.ArgumentParser()
     # 参数配置文件路径
-    parser.add_argument("--config", default='configsA6000.yml', type=str, required=False, help="Path to the config file")
+    parser.add_argument("--config", default='configs.yml', type=str, required=False, help="Path to the config file")
     args = parser.parse_args()
 
     with open(os.path.join(args.config), "r") as f:

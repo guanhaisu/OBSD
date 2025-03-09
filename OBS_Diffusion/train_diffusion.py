@@ -32,6 +32,7 @@ def main():
         config = yaml.safe_load(f)
     new_config = dict2namespace(config)
     config = new_config
+
     args.rank = int(os.environ["RANK"])
     args.world_size = int(os.environ['WORLD_SIZE'])
     args.gpu = int(os.environ['LOCAL_RANK'])
@@ -42,15 +43,17 @@ def main():
     dist.init_process_group(backend='nccl', init_method=args.dist_url,
                             world_size=args.world_size, rank=args.rank)
     dist.barrier()
+    misc.setup_for_distributed(args.rank == 0)
+
     # 判断是否使用 cuda
     config.local_rank = args.gpu
     device = torch.device("cuda", config.local_rank) if torch.cuda.is_available() else torch.device("cpu")
     # print("=> using device: {}".format(device))
     config.device = device
 
-    eff_batch_size = config.training.batch_size * misc.get_world_size()
+    eff_batch_size = config.training.batch_size * config.training.patch_n * misc.get_world_size()
     assert config.optim.lr is not None
-    config.optim.lr = config.optim.lr * eff_batch_size / 8
+    config.optim.lr = config.optim.lr * eff_batch_size / 256
 
     # 随机种子
     torch.manual_seed(config.training.seed)

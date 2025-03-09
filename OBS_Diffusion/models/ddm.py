@@ -13,6 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.misc import NativeScalerWithGradNormCount as NativeScaler
 import utils.lr_sched as lr_sched
 from tqdm import tqdm
+from diffusion import create_diffusion
 
 
 def data_transform(X):
@@ -91,6 +92,8 @@ def get_beta_schedule(beta_schedule, *, beta_start, beta_end, num_diffusion_time
     elif beta_schedule == "sigmoid":
         betas = np.linspace(-6, 6, num_diffusion_timesteps)
         betas = sigmoid(betas) * (beta_end - beta_start) + beta_start
+    elif beta_schedule == "cosine":
+        betas = create_diffusion(timestep_respacing=str(num_diffusion_timesteps), noise_schedule="cosine").betas
     else:
         raise NotImplementedError(beta_schedule)
     assert betas.shape == (num_diffusion_timesteps,)
@@ -102,14 +105,17 @@ def noise_estimation_loss(model, x0, t, e, b):
     x = x0[:, 3:, :, :] * a.sqrt() + e * (1.0 - a).sqrt()
     output = model(torch.cat([x0[:, :3, :, :], x], dim=1), t.float()).float()
     return (e - output).square().sum(dim=(1, 2, 3)).mean(dim=0)
+    # return (e - output).square().mean()
 
 
 class DenoisingDiffusion(object):
-    def __init__(self, config, test=False):
+    def __init__(self, config, test=False, web=False):
         super().__init__()
         self.config = config
         self.device = config.device
         self.amp = config.training.amp
+        self.use_vlb = config.model.use_vlb
+        self.learn_sigma = config.model.learn_sigma
         self.writer = SummaryWriter(config.data.tensorboard)
         self.model = DiffusionUNet(config)
         self.model.to(self.device)
@@ -120,8 +126,15 @@ class DenoisingDiffusion(object):
             #                                        output_device=self.device.index)
             # else:
             #     self.model = torch.nn.DataParallel(self.model)
-            self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[config.local_rank],
-                                                                   output_device=config.local_rank)
+            if web:
+                if self.device.index is not None:
+                    self.model = torch.nn.DataParallel(self.model, device_ids=[self.device.index],
+                                                       output_device=self.device.index)
+                else:
+                    self.model = torch.nn.DataParallel(self.model)
+            else:
+                self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[config.local_rank],
+                                                                       output_device=config.local_rank)
         else:
             self.model = torch.nn.parallel.DistributedDataParallel(self.model, device_ids=[config.local_rank],
                                                                    output_device=config.local_rank)
@@ -130,7 +143,12 @@ class DenoisingDiffusion(object):
 
         self.optimizer = utils.optimize.get_optimizer(self.config, self.model.parameters())
         if config.training.amp:
-            self.loss_scaler = NativeScaler()
+            if hasattr(config.training, 'init_scale'):
+                # 解析字符串表达式为实际数值
+                init_scale_value = eval(config.training.init_scale)
+                self.loss_scaler = NativeScaler(init_scale_value)
+            else:
+                self.loss_scaler = NativeScaler()
 
         self.start_epoch, self.step = 0, 0
 
@@ -143,6 +161,18 @@ class DenoisingDiffusion(object):
 
         betas = self.betas = torch.from_numpy(betas).float().to(self.device)
         self.num_timesteps = betas.shape[0]
+
+        if self.use_vlb:
+            self.train_diffusion = create_diffusion(timestep_respacing="", noise_schedule="cosine",
+                                                    learn_sigma=self.learn_sigma)
+            self.gen_diffusion = create_diffusion(timestep_respacing=str(self.config.sampling.sampling_timesteps),
+                                                  noise_schedule="cosine", learn_sigma=self.learn_sigma)
+            if self.test:
+                self.gen_diffusion = create_diffusion(timestep_respacing="", noise_schedule="cosine",
+                                                      learn_sigma=self.learn_sigma)
+        else:
+            self.train_diffusion = None
+            self.gen_diffusion = None
 
     def load_ddm_ckpt(self, load_path, ema=False):
         checkpoint = utils.logging.load_checkpoint(load_path, 'cpu')
@@ -170,8 +200,7 @@ class DenoisingDiffusion(object):
 
         # 训练
         for epoch in tqdm(range(self.start_epoch, self.config.training.n_epochs)):
-            if dist.get_rank() == 0:
-                print('=> current epoch: ', epoch)
+            print('=> current epoch: ', epoch)
             data_start = time.time()
             data_time = 0
             train_loader.sampler.set_epoch(epoch)
@@ -193,17 +222,28 @@ class DenoisingDiffusion(object):
 
                 lr_sched.adjust_learning_rate(self.optimizer, i / len(train_loader) + epoch, self.config.optim)
 
-                # 混合精度训练
                 self.optimizer.zero_grad()
+
+                # 混合精度训练
                 if self.amp:
                     with torch.cuda.amp.autocast():
-                        loss = noise_estimation_loss(self.model, x, t, e, b)
+                        if self.use_vlb:
+                            loss = self.train_diffusion.training_losses(self.model, x[:, 3:, :, :], t,
+                                                                        dict(c=x[:, :3, :, :]))["loss"]
+                            loss = loss.mean()
+                        else:
+                            loss = noise_estimation_loss(self.model, x, t, e, b)
                     self.loss_scaler(loss, self.optimizer, parameters=self.model.parameters(), update_grad=True)
                     self.optimizer.zero_grad()
                     torch.cuda.synchronize()
                     self.ema_helper.update(self.model, self.device)
                 else:
-                    loss = noise_estimation_loss(self.model, x, t, e, b)
+                    if self.use_vlb:
+                        loss = self.train_diffusion.training_losses(self.model, x[:, 3:, :, :], t,
+                                                                    dict(c=x[:, :3, :, :]))["loss"]
+                        loss = loss.mean()
+                    else:
+                        loss = noise_estimation_loss(self.model, x, t, e, b)
                     loss.backward()
                     self.optimizer.step()
                     self.optimizer.zero_grad()
@@ -232,7 +272,7 @@ class DenoisingDiffusion(object):
 
             # self.scheduler.step()
             # 保存模型
-            if (epoch % self.config.training.snapshot_freq == 0) and dist.get_rank() == 0:
+            if ((epoch + 1) % self.config.training.snapshot_freq == 0) and dist.get_rank() == 0:
                 utils.logging.save_checkpoint({
                     'epoch': epoch + 1,
                     'step': self.step,
@@ -241,7 +281,7 @@ class DenoisingDiffusion(object):
                     'ema_helper': self.ema_helper.state_dict(),
                     'config': self.config,
                     'scaler': self.loss_scaler.state_dict() if self.amp else None
-                }, filename=self.config.training.resume + '_' + str(epoch))
+                }, filename=self.config.training.resume + '_' + str(epoch + 1))
                 utils.logging.save_checkpoint({
                     'epoch': epoch + 1,
                     'step': self.step,
@@ -261,7 +301,7 @@ class DenoisingDiffusion(object):
                 'ema_helper': self.ema_helper.state_dict(),
                 'config': self.config,
                 'scaler': self.loss_scaler.state_dict() if self.amp else None
-            }, filename=self.config.training.resume + '_' + str(epoch))
+            }, filename=self.config.training.resume + '_' + str(epoch + 1))
             utils.logging.save_checkpoint({
                 'epoch': self.config.training.n_epochs,
                 'step': self.step,
@@ -277,7 +317,8 @@ class DenoisingDiffusion(object):
         seq = range(0, self.config.diffusion.num_diffusion_timesteps, skip)
         if patch_locs is not None:
             xs = utils.sampling.generalized_steps_overlapping(x, x_cond, seq, self.model, self.betas, eta=0.,
-                                                              corners=patch_locs, p_size=patch_size, device=self.device)
+                                                              corners=patch_locs, p_size=patch_size, device=self.device,
+                                                              gen_diffusion=self.gen_diffusion)
         else:
             xs = utils.sampling.generalized_steps(x, x_cond, seq, self.model, self.betas, eta=0., device=self.device)
         if last:
@@ -297,13 +338,25 @@ class DenoisingDiffusion(object):
             x_gt = x[:, 3:, :, :].to(self.device)  # GT图像
             x_cond = data_transform(x_cond)
             x = torch.randn(n, 3, self.config.data.image_size, self.config.data.image_size, device=self.device)
-            x = self.sample_image(x_cond, x)
+            if self.use_vlb:
+                x = self.gen_diffusion.p_sample_loop(
+                    self.model.forward, x.shape, x, clip_denoised=False, model_kwargs=dict(c=x_cond), progress=False,
+                )
+            else:
+                x = self.sample_image(x_cond, x)
             x = inverse_data_transform(x)
             x_cond = inverse_data_transform(x_cond)
+
+            if dist.get_rank() == 0:
+                file_name = os.path.join(image_folder, str(step))
+                if not os.path.exists(file_name):
+                    os.makedirs(file_name)
+            dist.barrier()
 
             for i in range(n):
                 # utils.logging.save_image(x_cond[i], os.path.join(image_folder, str(step), f"{i}_cond.png"))
                 # utils.logging.save_image(x[i], os.path.join(image_folder, str(step), f"{i}.png"))
                 combined_image = torch.cat((x_cond[i].unsqueeze(0), x[i].unsqueeze(0), x_gt[i].unsqueeze(0)), dim=0)
                 img = tvu.make_grid(combined_image, nrow=3, normalize=True, scale_each=True)
-                utils.logging.save_image(img, os.path.join(image_folder, str(step), f"{i + 1}_{y[len(y) * i // n]}.png"))
+                utils.logging.save_image(img,
+                                         os.path.join(image_folder, str(step), f"{i + 1}_{y[len(y) * i // n]}.png"))
