@@ -72,7 +72,7 @@ git clone https://github.com/guanhaisu/OBSD.git
 cd OBS_Diffusion
 ```
 ```bash
-conda create -n OBSD python=3.9
+conda create -n OBSD python=3.10
 conda activate OBSD
 conda install pytorch torchvision torchaudio pytorch-cuda=12.1 -c pytorch -c nvidia
 pip install -r requirements.txt
