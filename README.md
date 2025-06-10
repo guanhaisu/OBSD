@@ -3,7 +3,7 @@
 <p>
 
 <h2 align="center"> <a href="https://arxiv.org/abs/2406.00684">OBSD: Deciphering Oracle Bone Language with Diffusion Models </a></h2>
-<h4 align="center">Haisu Guan, Huanxin Yang, Xinyu Wang, Shengwei Han, Yongge Liu, Lianwen Jin, Xiang Bai, Yuliang Liu </h4>
+<h4 align="center">Haisu Guan, Huanxin Yang, Xinyu Wang, Shengwei Han, Yongge Liu, Lianwen Jin, Xiang Bai, Yuliang Liu* </h4>
 
 <h5 align="center">
 
@@ -98,3 +98,17 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python -m torch.distributed.run --nproc_per
 CUDA_VISIBLE_DEVICES=0 python refine.py
 ```
 You can find the FontDiffuser weights here, [GoogleDrive](https://drive.google.com/drive/folders/1kRwi5sfHn6oufydDmd-7X9pPFDZzFjkk?usp=drive_link). 
+
+
+## Cite
+```
+@misc{guan2025decipheringoraclebonelanguage,
+      title={Deciphering Oracle Bone Language with Diffusion Models}, 
+      author={Haisu Guan and Huanxin Yang and Xinyu Wang and Shengwei Han and Yongge Liu and Lianwen Jin and Xiang Bai and Yuliang Liu},
+      year={2025},
+      eprint={2406.00684},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2406.00684}, 
+}
+```
