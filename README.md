@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://s2.loli.net/2024/03/19/JnbZmeh18VsqkxF.png" width="250" alt="OBSD logo" />
+  <img src="figures\obsd.png" alt="OBSD logo"/>
 </div>
 
 <h2 align="center"><a href="https://arxiv.org/abs/2406.00684">OBSD: Deciphering Oracle Bone Language with Diffusion Models</a></h2>
