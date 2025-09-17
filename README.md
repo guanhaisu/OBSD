@@ -2,10 +2,8 @@
   <img src="figures\obsd.png" alt="OBSD logo"/>
 </div>
 
-<h2 align="center"><a href="https://arxiv.org/abs/2406.00684">OBSD: Deciphering Oracle Bone Language with Diffusion Models</a></h2>
-<p align="center">
-  Haisu Guan, Huanxin Yang, Xinyu Wang, Shengwei Han, Yongge Liu, Lianwen Jin, Xiang Bai, Yuliang Liu*
-</p>
+<h2 align="center"> <a href="https://arxiv.org/abs/2406.00684">OBSD: Deciphering Oracle Bone Language with Diffusion Models </a></h2>
+<h4 align="center">Haisu Guan, Huanxin Yang, Xinyu Wang, Shengwei Han, Yongge Liu, Lianwen Jin, Xiang Bai, Yuliang Liu* </h4>
 <p align="center">
   <a href="https://arxiv.org/abs/2406.00684"><img src="https://img.shields.io/badge/Arxiv-2406.00684-b31b1b.svg?logo=arXiv" alt="arXiv" /></a>
   <a href="http://vlrlabmonkey.xyz:8225/"><img src="https://img.shields.io/badge/Demo-blue" alt="Demo" /></a>
@@ -15,9 +13,9 @@
 OBSD (Oracle Bone Script Decipher) explores diffusion models for decoding oracle bone inscriptions and translating them into modern Chinese characters. This repository contains the official implementation, datasets, and training scripts from the paper.
 
 ## News
-- ```2024-08-14``` 🚀 OBSD selected as the ACL 2024 Best Paper.
-- ```2024-07-15``` 🚀 OBSD receives an ACL 2024 Oral presentation slot.
-- ```2024-05-16``` 🚀 OBSD accepted to ACL 2024 Main.
+- ```2024-08-14``` 🚀 OBSD has been selected as the ACL 2024 Best Paper.
+- ```2024-07-15``` 🚀 OBSD has been selected as the ACL 2024 Oral.
+- ```2024-05-16``` 🚀 OBSD is accepted by ACL 2024 Main.
 - ```2024-02-15``` 🚀 Source code released.
 
 ## Resources
